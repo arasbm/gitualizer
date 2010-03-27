@@ -1,0 +1,39 @@
+#any line preceeded with a # is a comment
+#the first line must be layout information, either
+#layout: mercator (expects x and y to be lat/lon)
+#layout: direct (x and y are just pixel coordinates)
+layout: direct
+
+#Next line must be whether to use edge routing or not
+#edgeRouting: true
+edgeRouting: false
+
+#Next line must be whether to use layout adjustment or not
+adjustNodes: true
+#adjustNodes: false
+
+#next is source info
+#source name, x, y
+root, 200, 200,
+#destinations go on next lines
+#name, x, y, value
+node1, 100, 400, 20
+node2, 200, 500, 10
+node3, 400, 600, 40
+node4, 550, 650, 30
+node5, 650, 400, 40
+node6, 150, 400, 20
+node7, 250, 500, 10
+node8, 490, 600, 40
+node9, 580, 650, 30
+node10, 600, 450, 40
+node11, 100, 480, 20
+node12, 200, 520, 10
+node13, 400, 680, 40
+node14, 580, 610, 30
+node15, 620, 480, 40
+node16, 190, 520, 20
+node17, 250, 220, 10
+node18, 320, 610, 40
+node19, 350, 150, 30
+node20, 600, 300, 40

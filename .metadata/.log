@@ -1,0 +1,22 @@
+!SESSION 2010-03-26 19:58:52.354 -----------------------------------------------
+eclipse.buildId=M20090917-0800
+java.version=1.6.0_0
+java.vendor=Sun Microsystems Inc.
+BootLoader constants: OS=linux, ARCH=x86, WS=gtk, NL=en_CA
+Framework arguments:  -product org.eclipse.epp.package.modeling.product -product org.eclipse.epp.package.modeling.product
+Command-line arguments:  -os linux -ws gtk -arch x86 -product org.eclipse.epp.package.modeling.product -data /home/arasbm/workspace/gitualizer -product org.eclipse.epp.package.modeling.product
+
+!ENTRY org.eclipse.xtend.typesystem.emf.ui 4 0 2010-03-26 20:05:32.272
+!MESSAGE Resource '/.org.eclipse.jdt.core.external.folders/.link0' does not exist.
+!STACK 1
+org.eclipse.core.internal.resources.ResourceException: Resource '/.org.eclipse.jdt.core.external.folders/.link0' does not exist.
+	at org.eclipse.core.internal.resources.Resource.checkExists(Resource.java:319)
+	at org.eclipse.core.internal.resources.Resource.checkAccessible(Resource.java:196)
+	at org.eclipse.core.internal.resources.Resource.accept(Resource.java:49)
+	at org.eclipse.core.internal.resources.Resource.accept(Resource.java:106)
+	at org.eclipse.core.internal.resources.Resource.accept(Resource.java:90)
+	at org.eclipse.xtend.typesystem.emf.ui.ProjectAnalyzer.loadMetamodelsForProject(ProjectAnalyzer.java:122)
+	at org.eclipse.xtend.typesystem.emf.ui.ProjectAnalyzer.run(ProjectAnalyzer.java:89)
+	at org.eclipse.core.internal.jobs.Worker.run(Worker.java:55)
+!SUBENTRY 1 org.eclipse.core.resources 4 368 2010-03-26 20:05:32.272
+!MESSAGE Resource '/.org.eclipse.jdt.core.external.folders/.link0' does not exist.
