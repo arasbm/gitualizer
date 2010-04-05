@@ -35,6 +35,7 @@ echo -e "// This JSON file is the output of gitLogToJSON shell script version $V
 
 oldIFS=$IFS # save the field separator  
 IFS=$'\n' # new field separator, the end of line 
+numberOfCommits=12
 lineCount=0 #keeps count of number of lines parsed from git log output
 nodeCount=0 #number of nodes parsed into JSON file
 
@@ -90,7 +91,7 @@ function saveNode()
 # git log -10 --simplify-merges --date=short --pretty=format:"node: %h%nparents: %p%nad: %ad%ncd: %cd" --numstat --dirstat
 # git log -10 --simplify-merges --date=short --pretty=format:"node: %h%nparents: %p%nad: %ad%ncd: %cd" --numstat
 #
-for line in $(git log -10 --simplify-merges --date=short --pretty=format:"node: %h%nparents: %p%nad: %ad%ncd: %cd" --numstat --dirstat)
+for line in $(git log -$numberOfCommits --simplify-merges --date=short --pretty=format:"node: %h%nparents: %p%nad: %ad%ncd: %cd" --numstat)
 do
 	if [[ "$line" =~ ^node:.* ]]
 	then
@@ -131,14 +132,13 @@ do
 		echo "UNDETECTED LINE!! Somthing is wrong at line $lineCount: $line"
 	fi
 	(( lineCount++ ))
-	echo -ne '$nodeCount\r'
-
+	echo -ne "\r $(( $nodeCount + 1 )). out of $numberOfCommits"
 done
 echo -e "];\n//end" >> $OUTPUT
 IFS="$oldIFS" #restoring the internal field seperator
 finishTime=$(date +%s)
 let totalSeconds=$finishTime-$startTime
 let totalMinutes=$totalSeconds/60
-echo "Finished exporting $lineCount lines from git log output to $OUTPUT, in JSON format.
+echo -e "\nFinished exporting $lineCount lines from git log output to $OUTPUT, in JSON format.
 This took $totalMinutes minutes and $(( $totalSeconds % 60 )) seconds"
 exit $?
