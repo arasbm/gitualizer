@@ -1,9 +1,9 @@
 #!/bin/bash
-# gitLogToJSON.sh This script converts output of a git-log command to JSON format to prepare it for visualization. 
-# Vesion 0.1
+# gitLogToJSON.sh This script converts output of a git-log command to JIT JSON format for graph visualization. 
+#  
 # Author: Aras Balali Moghaddam
 
-VERSION=0.1
+VERSION=0.2
 startTime=$(date +%s)
 
 #This function returns a unique file name that doesnt exist where the script is called
@@ -27,12 +27,6 @@ function getUniqueFileName()
 	echo $OUT;
 }
 
-OUTPUT=$(getUniqueFileName "$1")
-
-echo -e "// This JSON file is the output of gitLogToJSON shell script version $VERSION
-// This file was created on $(date)
-\nvar json = [" > $OUTPUT
-
 oldIFS=$IFS # save the field separator  
 IFS=$'\n' # new field separator, the end of line 
 numberOfCommits=12
@@ -43,9 +37,39 @@ nodeCount=0 #number of nodes parsed into JSON file
 hashId=0
 parent=0
 authorDate=0
+authorName="N/A"
 commitDate=0
 modificationSum=0 #keeps track of how much is modified in each commit
 dirStat=0 #this is a 2D array in the format: N% DIR_NAME N% DIR_NAME ...
+
+#process user options
+while getopts ":f:n:" optname
+do
+  case "$optname" in
+    "f")
+      OUTPUT=$OPTARG
+      ;;
+    "n")
+      numberOfCommits=$OPTARG
+      ;;
+    "?")
+      echo "Unknown option $OPTARG"
+      ;;
+    ":")
+      echo "No argument value for option $OPTARG"
+      ;;
+    *)
+    # Should not occur
+      echo "Unknown error while processing options"
+      ;;
+  esac
+done
+
+OUTPUT=$(getUniqueFileName $OUTPUT)
+
+echo -e "// This JSON file is the output of gitLogToJSON shell script version $VERSION
+// This file was created on $(date)
+\nvar json = [" > $OUTPUT
 
 #This function just resets everything back to 0 and should be called before starting to fill in a now node
 function resetNodeParameters() 
@@ -53,6 +77,7 @@ function resetNodeParameters()
 	hashId=0
 	parent=0
 	authorDate=0
+	authorName="N/A"
 	commitDate=0
 	modificationSum=0
 	dirStat=0 
@@ -63,35 +88,75 @@ function saveNode()
 {
 	if [[ $nodeCount > 0 ]] 
 	then 
-	      echo -e "," >> $OUTPUT #node seperator
+	      echo -en ", " >> $OUTPUT #node seperator
 	fi 
-	echo -e "{
+	echo -en "{
 \t\"id\": \"$hashId\",
-\t\"authorDate\": \"$authorDate\",
-\t\"commitDate\": \"$commitDate\",
-\t\"modificationSum\": \"$modificationSum\",
-\t\"adjacencies\": [{" >> $OUTPUT
+\t\"name\": \"$authorName\",
+\t\"data\": {
+\t\t\"authorDate\": \"$authorDate\",
+\t\t\"commitDate\": \"$commitDate\",
+\t\t\"modificationSum\": \"$modificationSum\"
+\t}" >> $OUTPUT
 	
 	local numOfParents=$(echo $parent | wc -w)
-	if [[ $numOfParents > 1 ]] 
+	(( modificationSum++ )) #just to avoid 0
+	local weightOfThisEdge=$(echo "scale=1; l($modificationSum)" | bc -l)
+	local weightOfThisEdge=$(( ${weightOfThisEdge%.*} + 1 ))
+	if [[ $numOfParents > 0 ]] 
 	then
-	      for (( i = 1 ; i < $numOfParents ; i++ )) 
-	      do
-		  local thisParent=$(echo $parent | cut --delimiter=" " -f $i)
-		  echo -e "\t\t\"nodeTo\": $thisParent," >> $OUTPUT
-	      done
+		#include edges that connect this node to each parent
+		echo -e ",\n\t\"adjacencies\": [" >> $OUTPUT
+		for (( i = 1 ; i <= $numOfParents ; i++ )) 
+		do
+			local thisParent=$(echo $parent | cut --delimiter=" " -f $i)
+			echo -e "\t{\n\t\t\"nodeTo\": \"$thisParent\"," >> $OUTPUT
+			echo -e "\t\t\"data\": {" >> $OUTPUT
+			echo -e "\t\t\t\"weight\": $weightOfThisEdge" >> $OUTPUT
+			echo -en "\t\t}\n\t}" >> $OUTPUT
+			if [[ $i < $numOfParents ]]
+			then
+				echo -e "," >> $OUTPUT
+			else 
+				echo -e "]" >> $OUTPUT
+			fi
+		done
 	fi
-	local thisParent=$(echo $parent | cut --delimiter=" " -f $numOfParents)
-	echo -e "\t\t\"nodeTo\": $thisParent" >> $OUTPUT
-	echo -e "\t}]\n}" >> $OUTPUT
+	echo -en "}"
+
 	(( nodeCount++ ))
+	if [[ $(( $nodeCount % 10 )) = 0 ]]
+	then
+		printProgressBar
+	fi
+}
+
+#This function simply prints a progress bar to indicate how much of the file has been written
+function printProgressBar()
+{
+	local progressLength=20
+	local outputString="\r["
+	ratio=$(echo "scale=2; 1+$nodeCount*$progressLength/$numberOfCommits" | bc )
+	for (( j = 0; j < $progressLength; j++ ))
+	do 
+		if [[ $(echo "$j < $ratio"|bc) -eq 1 ]]
+		then
+			outputString+="#"
+		else
+			outputString+="-"
+		fi
+	done
+	outputString+="] Commit $(( $nodeCount + 1 )) of $numberOfCommits                        "
+	echo -ne $outputString
 }
 
 # Commands to use:
 # git log -10 --simplify-merges --date=short --pretty=format:"node: %h%nparents: %p%nad: %ad%ncd: %cd" --numstat --dirstat
 # git log -10 --simplify-merges --date=short --pretty=format:"node: %h%nparents: %p%nad: %ad%ncd: %cd" --numstat
+# git log -10 --simplify-merges --date=short --pretty=format:"node: %h%nparents: %p%nad: %ad%ncd: %cd%nan: %an" --numstat
 #
-for line in $(git log -$numberOfCommits --simplify-merges --date=short --pretty=format:"node: %h%nparents: %p%nad: %ad%ncd: %cd" --numstat)
+echo -en "Loading git log output, this might take a while ..."
+for line in $(git log -$numberOfCommits --simplify-merges --date=short --pretty=format:"node: %h%nparents: %p%nad: %ad%ncd: %cd%nan: %an" --numstat)
 do
 	if [[ "$line" =~ ^node:.* ]]
 	then
@@ -109,6 +174,10 @@ do
 	then
 		#add author date
 		authorDate=$(echo $line | cut --delimiter=" " --fields=2 )
+	elif [[ "$line" =~ ^an:.* ]]
+	then
+		#add author name
+		authorName=$(echo $line | cut --delimiter=" " --fields=2 )
 	elif [[ "$line" =~ ^cd:.* ]]
 	then
 		#add commit date
@@ -132,13 +201,15 @@ do
 		echo "UNDETECTED LINE!! Somthing is wrong at line $lineCount: $line"
 	fi
 	(( lineCount++ ))
-	echo -ne "\r $(( $nodeCount + 1 )). out of $numberOfCommits"
 done
+
+
 echo -e "];\n//end" >> $OUTPUT
 IFS="$oldIFS" #restoring the internal field seperator
 finishTime=$(date +%s)
 let totalSeconds=$finishTime-$startTime
 let totalMinutes=$totalSeconds/60
-echo -e "\nFinished exporting $lineCount lines from git log output to $OUTPUT, in JSON format.
+printProgressBar
+echo -e "\nFinished exporting $lineCount lines from git log output which contain $numberOfCommits commits to \"$OUTPUT\" in JSON format.
 This took $totalMinutes minutes and $(( $totalSeconds % 60 )) seconds"
 exit $?
