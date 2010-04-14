@@ -9,7 +9,7 @@
 <div id="chart"></div>
 <?php
 ini_set('memory_limit', '64M');
-
+ini_set('maximum_execution_time', '200s');
 //represents a commit
 class Node {
 	public $id=0;
@@ -19,6 +19,7 @@ class Node {
 	public $authorDate="";
 	public $authorEmail="";
 	public $commitDate;
+	public $relativeDate; //relative author date
 	public $subsystem=array();
 	public $modificationSum=0;
 
@@ -75,7 +76,7 @@ Class GitParser {
 	/*Takes a shaw1 id, queries the git log then creates and returns the coresponding node object*/
 	public function getNode($nodeId) {
 		$node = new Node;
-		$results = shell_exec("git log -1 $nodeId --date=raw --pretty=format:\"id: %h%npa: %p%nan: %an%nae: %ae%nad: %ad%ncd: %cd\" --numstat --dirstat");
+		$results = shell_exec("git log -1 $nodeId --pretty=format:\"id: %h%npa: %p%nan: %an%nae: %ae%nad: %at%nar: %ar%ncd: %ct\" --numstat --dirstat");
 		foreach(preg_split("/(\r?\n)/", $results) as $line){
 			$flag=substr($line,0,2);
 			$line=str_replace("\t"," ",$line);
@@ -88,6 +89,8 @@ Class GitParser {
 				}
 			} else if($flag==="ad") {
 				$node->authorDate=$item[1];
+			} else if($flag==="ar") {
+				$node->relativeDate=substr($line,4);
 			} else if($flag==="an") {
 				$node->authorName=substr($line,4);
 			} else if($flag==="ae") {
@@ -112,12 +115,13 @@ class Extractor {
 	public $canvasW=2000;
 	public $canvasH=500;
 	public $offsetH=400;
-	public $since=1284412000; //From this date
+	public $since=1289992000; //From this date
 	public $until=1291442400; //To this date
 	public $visited=array(); // [shaw1 id]=true or false
 	public $minThickness=2; //pixels
 	public $nodeList=array();
-
+	
+	private $dummyCount = 0; //for testing
 	private $gitParser;
 
 	function __construct() {
@@ -127,34 +131,35 @@ class Extractor {
 
 	/* recursively extracts commit nodes from git and stores them in nodeList[] array, 
 	 * this function will likely take a long time */
-	public function recCommitExtract($nodeId) {
-		$b=new Branch;
-		$cNode=$this->gitParser->getNode($initId);
-		
-		if($visited[$nodeId]) {
+	public function recCommitExtractor($nodeId) {
+		$cNode=$this->gitParser->getNode($nodeId);
+		$this->dummyCount++;
+		if(in_array("$nodeId", $this->visited)) {
+			//echo "Again... ".$nodeId."<br />";
 			return;
 		} else {
-			$visited[$nodeId]=true;
-		}
-
-		if($cNode->authorDate < $since) {
-			$cNode->parentList=array();
-		} else {
-			foreach($cNode->parentList as $p) {
-				$this->recCommitExtractor($p);
+			$this->visited[]="$nodeId";
+			if($cNode->authorDate < $since | $this->dummyCount > 100) {
+				$cNode->parentList=array();
+				$this->nodeList[]=$cNode;
+				//echo "too old".$nodeId;
+			} else {
+				$this->nodeList[]=$cNode;
+				foreach($cNode->parentList as $p) {
+					$this->recCommitExtractor($p);
+				}
 			}
 		}
-		return;
 	}
 }
 	
 	$extractor= new Extractor;
 //	echo "Time ~ Position: ".$extractor->timePositionRatio."<br />";
-	$extractor->recCommitExtract("e99cc29");
+	$extractor->recCommitExtractor("e99cc29");
 	
 	//List the node info in a table
         echo "<table width='90%'><tr>"; 
-	echo "<tr><th>SHAW</th><th>Author</th><th>Author Email</th><th>Sign offs</th><th>Parents</th><th>Commit Date</th><th>Subsystem</th><th>Modification Sum</th>";
+	echo "<tr><th>SHAW</th><th>Author</th><th>Author Email</th><th>Sign offs</th><th>Parents</th><th>Commit Date</th><th>Relative Date</th><th>Subsystem</th><th>Modification Sum</th>";
 	foreach($extractor->nodeList as $node) {
 		echo "<tr><td>";
 		echo $node->id."</td><td>";
@@ -165,6 +170,7 @@ class Extractor {
 		}		
 		echo "</td><td>";
 		echo $node->commitDate."</td><td>";
+		echo $node->relativeDate."</td><td>";
 		foreach ($node->subsystem as $s) {
 			echo "[".$s."]\n ";
 		}
