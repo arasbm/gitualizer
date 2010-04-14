@@ -29,7 +29,7 @@ class Node {
 	public $thickness = 1;
 	
 	public function __toString() {
-		$retStr="<pre>Node: $this->id \nAuthor: $this->authorName\nAuthor Email: $this->authorEmail\nAuthor Date: $this->authorDate\nCommitted on: $this->commitDate\nSybsystems: ".$this->sybsystem."\nTotal Modifications: $this->modificationSum\n";
+		$retStr="<pre>Node: $this->id \nAuthor: $this->authorName\nAuthor Email: $this->authorEmail\nAuthor Date: $this->authorDate\nCommitted on: $this->commitDate\nSybsystem[0]: ".$this->subsystem[0]."\nTotal Modifications: $this->modificationSum\n";
 		return $retStr;
 	}
 }
@@ -98,7 +98,7 @@ Class GitParser {
 			} else if($flag==="cd") {
 				$node->commitDate=$item[1];
 			} else if(substr($flag,0,1)===" ") {
-				$subsystem[]=$item[1];
+				$node->$subsystem[]=$item[2];
 			} else {
 			//Assuming this is numstat line
 				$node->modificationSum+=($item[1] + $item[2]);
@@ -151,12 +151,37 @@ class Extractor {
 			}
 		}
 	}
-}
 	
-	$extractor= new Extractor;
-//	echo "Time ~ Position: ".$extractor->timePositionRatio."<br />";
-	$extractor->recCommitExtractor("e99cc29");
-	
+	//prints the content of nodeList in JIT graph JSON format
+	public function printJSON() {
+	echo	"var json = [\n";
+	for($i=0; $i<sizeof($extractor->nodeList); $i++) {
+		$node=$extractor->nodeList[$i];
+		echo	"{\n";
+		echo	"\"id\": \"$node->nodeId\",\n";
+		echo 	"\"name\": \"$node->author\",\n";
+		echo 	"\"data\": \" {\n";
+		echo 	"\t\"relativeDate\": \"$node->relativeDate\",\n";
+		echo 	"\t\"authorEmail\": \"$node->authorEmail\"\n";
+		echo	"},\n";
+		echo 	"\"adjacencies\": [";
+		for($j=0; $j<sizeof($node->parentList); $j++) {
+		echo 	"{\n";
+		echo 	"\t\"nodeTo\": \"$node->parentList[$j]\",\n";
+		echo 	"\t\"data\": {\n";
+		echo 	"\t\t\"\$lineWidth\": $node->modificationSum";
+		echo 	"\t}";
+		if ($j <sizeof($extractor->nodeList) -1) echo ",";
+		}
+		echo	"]";
+		echo 	"}";
+		if ($i <sizeof($extractor->nodeList) -1) echo ",";		
+	}
+	echo	"];//end";
+	}
+
+	//prints the content of nodeList in an html table format
+	public function printTable() {
 	//List the node info in a table
         echo "<table width='90%'><tr>"; 
 	echo "<tr><th>SHAW</th><th>Author</th><th>Author Email</th><th>Sign offs</th><th>Parents</th><th>Commit Date</th><th>Relative Date</th><th>Subsystem</th><th>Modification Sum</th>";
@@ -178,6 +203,16 @@ class Extractor {
 		echo $node->modificationSum."</td><td>";
 	}
 	echo "</table>";
+	}
+}
+	
+	$extractor= new Extractor;
+//	echo "Time ~ Position: ".$extractor->timePositionRatio."<br />";
+	$extractor->recCommitExtractor("e99cc29");
+	echo "<pre>";
+	$extractor->printJSON();
+	echo "</pre>";
+
 ?>
 </div>
 </body>
