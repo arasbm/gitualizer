@@ -160,16 +160,16 @@ class Extractor {
 		echo	"{\n";
 		echo	"\"id\": \"$node->id\",\n";
 		echo 	"\"name\": \"$node->authorName\",\n";
-		echo 	"\"data\": \" {\n";
+		echo 	"\"data\": {\n";
 		echo 	"\t\"relativeDate\": \"$node->relativeDate\",\n";
 		echo 	"\t\"authorEmail\": \"$node->authorEmail\"\n";
 		echo	"},\n";
-		echo 	"\"adjacencies\": [";
+		echo 	"\"adjacencies\": [\n";
 		for($j=0; $j<sizeof($node->parentList); $j++) {
-			echo 	"{\n";
+			echo 	"\t{\n";
 			echo 	"\t\"nodeTo\": \"".$node->parentList[$j]."\",\n";
-			echo 	"\t\"data\": {\n";
-			echo 	"\t\t\"\$lineWidth\": $node->modificationSum";
+			echo 	"\t\"data\": {";
+			echo 	"\t\t\"\$lineWidth\": $node->modificationSum }\n";
 			echo 	"\t}";
 			if ($j <(sizeof($node->parentList)-1)) echo ",\n";
 		}

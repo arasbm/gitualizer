@@ -98,7 +98,8 @@ Class GitParser {
 			} else if($flag==="cd") {
 				$node->commitDate=$item[1];
 			} else if(substr($flag,0,1)===" ") {
-				$subsystem[]=$item[1];
+				//echo "Subsystme line: ".$line."<br />Item 1:".$item[1];
+				$subsystem[]=$item[2];
 			} else {
 			//Assuming this is numstat line
 				$node->modificationSum+=($item[1] + $item[2]);
