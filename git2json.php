@@ -2,11 +2,8 @@
 <html lang="en">
     <head>
         <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-        <title>Visualization of Code Flow in the Linux Project</title>
-        <script src="raphael.js" type="text/javascript" charset="utf-8"></script>
-        <script src="jquery.js" type="text/javascript" charset="utf-8"></script>
+        <title>Exporting data from Linux kernel history into a JSON file</title>
 	<link rel="stylesheet" href="style.css" type="text/css" media="screen">
-
 </head>
 <body>
 <div id="chart"></div>
@@ -16,7 +13,7 @@ ini_set('memory_limit', '64M');
 //represents a commit
 class Node {
 	public $id=0;
-	public $parentId=array();
+	public $parentList=array();
 	public $authorName="";
 //	public $signedBy=array();
 	public $authorDate="";
@@ -62,14 +59,6 @@ Class Vector {
 	}
 }
 
-//A branch
-class Branch {
-	public $startPosition; //the 2D point branch starts from
-	public $node=array(); 
-	public $totalModified=0; //Total of the modificationSum of all the nodes in this branch 
-}
-
-
 Class GitParser {
 	private $PathToRepo="";
 	function __construct($path) {
@@ -95,7 +84,7 @@ Class GitParser {
 				$node->id="$item[1]";
 			} else if($flag==="pa") {
 				for($pi=1; $pi < sizeof($item); $pi++) {
-					$node->parentId[$pi-1]=$item[$pi];
+					$node->parentList[$pi-1]=$item[$pi];
 				}
 			} else if($flag==="ad") {
 				$node->authorDate=$item[1];
@@ -125,12 +114,9 @@ class Extractor {
 	public $offsetH=400;
 	public $since=1284412000; //From this date
 	public $until=1291442400; //To this date
-	public $branches = array();
-	public $visited=array(); //shaw1 id of visited nodes
-	public $timePositionRatio;
-	public $initialVector=20;
-	public $vectorRatio=2;
+	public $visited=array(); // [shaw1 id]=true or false
 	public $minThickness=2; //pixels
+	public $nodeList=array();
 
 	private $gitParser;
 
@@ -139,120 +125,54 @@ class Extractor {
 		$this->timePositionRatio=$this->canvasH / ($this->until - $this->since);
 	}
 
-	public function recBranch($initNode) {
+	/* recursively extracts commit nodes from git and stores them in nodeList[] array, 
+	 * this function will likely take a long time */
+	public function recCommitExtract($nodeId) {
 		$b=new Branch;
-		$nextNode=$this->gitParser->getNode($initNode);
-		$nextNode->location=new Point(($nextNode->commitDate-$since)*$timePositionRatio,$offsetH);
-		$nextNode->direction=new Vector(0,20);
+		$cNode=$this->gitParser->getNode($initId);
 		
-		$hasMore=true;
-		$stepCount=0;
-		while($hasMore && $stepCount < 10) {
-			$stepCount++;
-			if($nextNode->commitDate < $since) {
-				//echo "reached <br />";
-				$hasMore=false;
-				break;
-			} else if(sizeof($b->node) > 6) {
-				//TODO this condition is just for testing and should be removed
-				//echo "reached testing cap<br/>";
-				$hasMore=false;
-				break;
-			} else if($this->visited[$nextNode->id]) {
-				//skip visited nodes
-				//echo "ignoring visited";
-				break;
-			}
-			
-			$this->visited[$nextNode->id]=true; //mark current node as visited
-
-			$b->node[]=$nextNode; //add this node current branch
-
-			$b->totalModified+=$nextNode->modificationSum;			
-			//calculate force and location for the new node	
-			$vF=$nextNode->direction->vForce + $vectorRatio;
-			$hF=$nextNode->direction->hForce - $vectorRatio;
-			if ($vF > $initialVector) {
-				$vF = $initialVector;
-			}
-			if ($hF < 0) {
-				$hF = 0;
-			}
-			$y=$nextNode->location->Y - (hF / 2);
-
-			/* If the corrent node has two parents, add one of them to the current branch 
-			 * and try to make a branch from the other parent, starting from the merge point and going back.
-			 */
-			if(sizeof($nextNode->parentId)>1) {
-				$nextBranch=$nextNode->parentId[1];
-				$nextNode=$this->gitParser->getNode($nextNode->parentId[0]);
-				$this->recBranch($nextBranch);
-			} else {
-				$nextNode=$this->gitParser->getNode($nextNode->parentId[0]);
-			}
-			$nextNode->direction=new Vector($hF,$vF);
-			$nextNode->location=new Point(($nextNode->commitDate-$since)*$timePositionRatio,$y);
+		if($visited[$nodeId]) {
+			return;
+		} else {
+			$visited[$nodeId]=true;
 		}
 
-		//set tickness
-		$temp=$b->totalModified;
-		for($k=0;$k<sizeof($b->node);$k++) {
-			$temp-=$b->node[k]->modificationSum; //TODO check accuracy of this
-			if(log($temp,2) > $this->minThickness) {
-				$b->node[k]->thickness=log($temp,2);
-			} else {
-				$b->node[k]->thickness=$this->minThickness;	
+		if($cNode->authorDate < $since) {
+			$cNode->parentList=array();
+		} else {
+			foreach($cNode->parentList as $p) {
+				$this->recCommitExtractor($p);
 			}
 		}
-		$this->branches[]=$b; //add this branch to the list
+		return;
 	}
 }
 	
 	$extractor= new Extractor;
 //	echo "Time ~ Position: ".$extractor->timePositionRatio."<br />";
-	$extractor->recBranch("e99cc29");
+	$extractor->recCommitExtract("e99cc29");
 	
-	//echo "Size of branch is: ".sizeof($extractor->branches)."<br />";
-	//print_r($extractor->branches);
-	
-	//Traverse the branch data and draw it
-	echo '<script type="text/javascript" charset="utf-8">
-		window.onload = function () {';
-        echo "var paper = Raphael(\"chart\", $extractor->canvasW, $extractor->canvasH);\n";
-	echo "var color0 = Raphael.getColor();";
-	echo "paper.path(\"M0,450L 2000,450\").attr({stroke: color0, \"stroke-width\": 20});";
-	echo "var color1 = Raphael.getColor();\n";
-	echo 'function curve(x, y, ax, ay, bx, by, zx, zy, thickness, color) {
-                    paper.path("M" x, y "C", ax, ay, bx, by, zx, zy").attr({stroke: color, "stroke-width": thickness});
-}';
-	
-	for($i=0; $i < sizeof($extractor->branches); $i++) {
-		//$s=sizeof($extractor->branches[$i]->node);
-		//echo "<b>New Branch [$i] size: $s</b><br />";		
-		for($j=1;$j<sizeof($extractor->branches[$i]->node);$j++) {
-			$thisNode= $extractor->branches[$i]->node[$j];
-			$prevNode= $extractor->branches[$i]->node[$j-1];
-			$x=$thisNode->location->X;
-			$y=$thisNode->location->Y;
-			$ax=$thisNode->direction->hForce;
-			$ay=$thisNode->direction->vForce;
-			$th=$thisNode->thickness;
-			try{	
-				echo "curve($x,$y,$ay,$ax,$ax,$ay, $th , color1 );";
-			} catch(Exception $err) {
-				//echo $err
-			}
-		}	
+	//List the node info in a table
+        echo "<table width='90%'><tr>"; 
+	echo "<tr><th>SHAW</th><th>Author</th><th>Author Email</th><th>Sign offs</th><th>Parents</th><th>Commit Date</th><th>Subsystem</th><th>Modification Sum</th>";
+	foreach($extractor->nodeList as $node) {
+		echo "<tr><td>";
+		echo $node->id."</td><td>";
+		echo $node->author."</td><td>";
+		echo $node->authorEmail."</td><td>N/A</td><td>";
+		foreach ($node->parentList as $p) {
+			echo "[".$p."]\n ";
+		}		
+		echo "</td><td>";
+		echo $node->commitDate."</td><td>";
+		foreach ($node->subsystem as $s) {
+			echo "[".$s."]\n ";
+		}
+		echo "</td><td>";
+		echo $node->modificationSum."</td><td>";
 	}
-	//Some testing
-	/*$gitParser->getLastNode();
-	echo "<br />getNode: ";
-	$gitParser->getNode("724e6d3fe8003c3");
-	$gitParser->getNode("e99cc29");
-	echo getcwd()." : is tha path outside after the change in class\n";
-//	$results = shell_exec("git log -50 --simplify-merges --numstat --dirstat");
-	*/
-	echo "}</script>"
+	echo "</table>";
 ?>
+</div>
 </body>
 </html>
