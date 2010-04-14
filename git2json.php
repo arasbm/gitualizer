@@ -98,7 +98,7 @@ Class GitParser {
 			} else if($flag==="cd") {
 				$node->commitDate=$item[1];
 			} else if(substr($flag,0,1)===" ") {
-				$node->$subsystem[]=$item[2];
+				$node->subsystem[]=$item[2];
 			} else {
 			//Assuming this is numstat line
 				$node->modificationSum+=($item[1] + $item[2]);
@@ -154,28 +154,28 @@ class Extractor {
 	
 	//prints the content of nodeList in JIT graph JSON format
 	public function printJSON() {
-	echo	"var json = [\n";
-	for($i=0; $i<sizeof($extractor->nodeList); $i++) {
-		$node=$extractor->nodeList[$i];
+	echo	"var json = [";
+	for($i=0; $i<sizeof($this->nodeList); $i++) {
+		$node=$this->nodeList[$i];
 		echo	"{\n";
-		echo	"\"id\": \"$node->nodeId\",\n";
-		echo 	"\"name\": \"$node->author\",\n";
+		echo	"\"id\": \"$node->id\",\n";
+		echo 	"\"name\": \"$node->authorName\",\n";
 		echo 	"\"data\": \" {\n";
 		echo 	"\t\"relativeDate\": \"$node->relativeDate\",\n";
 		echo 	"\t\"authorEmail\": \"$node->authorEmail\"\n";
 		echo	"},\n";
 		echo 	"\"adjacencies\": [";
 		for($j=0; $j<sizeof($node->parentList); $j++) {
-		echo 	"{\n";
-		echo 	"\t\"nodeTo\": \"$node->parentList[$j]\",\n";
-		echo 	"\t\"data\": {\n";
-		echo 	"\t\t\"\$lineWidth\": $node->modificationSum";
-		echo 	"\t}";
-		if ($j <sizeof($extractor->nodeList) -1) echo ",";
+			echo 	"{\n";
+			echo 	"\t\"nodeTo\": \"".$node->parentList[$j]."\",\n";
+			echo 	"\t\"data\": {\n";
+			echo 	"\t\t\"\$lineWidth\": $node->modificationSum";
+			echo 	"\t}";
+			if ($j <(sizeof($node->parentList)-1)) echo ",\n";
 		}
 		echo	"]";
 		echo 	"}";
-		if ($i <sizeof($extractor->nodeList) -1) echo ",";		
+		if ($i <(sizeof($this->nodeList)-1)) echo ",\n";		
 	}
 	echo	"];//end";
 	}
@@ -185,7 +185,7 @@ class Extractor {
 	//List the node info in a table
         echo "<table width='90%'><tr>"; 
 	echo "<tr><th>SHAW</th><th>Author</th><th>Author Email</th><th>Sign offs</th><th>Parents</th><th>Commit Date</th><th>Relative Date</th><th>Subsystem</th><th>Modification Sum</th>";
-	foreach($extractor->nodeList as $node) {
+	foreach($this->nodeList as $node) {
 		echo "<tr><td>";
 		echo $node->id."</td><td>";
 		echo $node->author."</td><td>";
