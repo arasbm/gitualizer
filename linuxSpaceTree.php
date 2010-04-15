@@ -21,13 +21,14 @@ class Node {
 	public $authorEmail="";
 	public $committerName;
 	public $commitDate;	
-	public $subsystem=array();
+	public $subsystem; //todo: make this an array
 	public $modificationSum=0;
 
 	//Drawing attriutes
 	public $location;  //a 2D point
 	public $direction; //a vector
 	public $thickness = 1;
+	public $lineColor;
 	
 	public function __toString() {
 		$retStr="<pre>Node: $this->id \nAuthor: $this->authorName\nAuthor Email: $this->authorEmail\nAuthor Date: $this->authorDate\nCommitted on: $this->commitDate\nSybsystem[0]: ".$this->subsystem[0]."\nTotal Modifications: $this->modificationSum\n";
@@ -64,7 +65,7 @@ Class Vector {
 Class GitParser {
 	private $PathToRepo="";
 	public $subsystemList=array(); //list of all subsytems that have been modified
-	public $colorList=("#a73224","#a77e24","#95bb22","#51bb22","#22bb7c","#22abbb","#2267bb","#2322bb","#5522bb","#a122bb");
+	public $colorList=array("#a73224","#a77e24","#95bb22","#51bb22","#22bb7c","#22abbb","#2267bb","#2322bb","#5522bb","#a122bb","#402626");
 	private $lastColorIndex=0;
 
 	function __construct($path) {
@@ -74,8 +75,7 @@ Class GitParser {
 
 	}
 	public function getLastNode() {
-		$results = shell_exec("git log -1 --numstat --dirstat");
-		echo "<pre>".$results."</pre>";
+		return shell_exec("git log -1 --pretty=format:\"%h\"");
 	}
 
 	/*Takes a shaw1 id, queries the git log then creates and returns the coresponding node object*/
@@ -103,19 +103,30 @@ Class GitParser {
 			} else if($flag==="cd") {
 				$node->commitDate=$item[1];
 			} else if($flag==="cn") {
-				$node->committerName=substr($item,4);
+				$node->committerName=substr($line,4);
 			} else if(substr($flag,0,1)===" ") {
 				$dirs=explode("/", $item[2]);
-				$node->subsystem[$dirs[0]]=$item[1]; // ex: [drivers]=100%
-				if(!in_array($dirs[0], $this->subsystemList)) {
-					$this->subsystemList[$dirs[0]]=$this->colorList[$this->lastColorIndex];
-					$this->lastColorIndex++;
+				if(isset($node->subsytem)) {
+					//we dont need to do anything here then
+				} else {
+					$node->subsystem="$dirs[0]"; 
+					if(isset($this->subsystemList["$node->subsystem"])) {
+						$node->lineColor=$this->subsystemList["$node->subsystem"];
+					} else {
+						$this->subsystemList["$node->subsystem"]=$this->colorList[$this->lastColorIndex];
+						if($this->lastColorIndex < sizeof($this->colorList)-1) {
+							 $this->lastColorIndex++;
+						}
+						$node->lineColor=$this->subsystemList["$node->subsystem"];
+					}
 				}
 			} else {
 				//Assuming this is numstat line
 				$node->modificationSum+=($item[1] + $item[2]);
 			}
 		}	
+		$node->lineWidth=round(log($node->modificationSum,2)) + 1;
+		if($node->lineWidth < 1) $node->lineWidth=1;
 		return $node;	
 	}	
 }	
@@ -138,6 +149,11 @@ class Extractor {
 		$this->timePositionRatio=$this->canvasH / ($this->until - $this->since);
 	}
 
+	//extracts the recent history going back up to "since"
+	public function startFromLatest() {
+		$lastShaw=shell_exec("git log -1 --pretty=format:\"%h\"");
+		$this->recCommitExtractor($lastShaw);
+	}
 	/* recursively extracts commit nodes from git and stores them in nodeList[] array, 
 	 * this function will likely take a long time */
 	public function recCommitExtractor($nodeId) {
@@ -167,8 +183,7 @@ class Extractor {
 	echo	"var json = [";
 	for($i=0; $i<sizeof($this->nodeList); $i++) {
 		$node=$this->nodeList[$i];
-		$edgeColor=$this->gitParser->subsytemList[$node->subsystem[0]]; //TODO: for now im setting the color to first subsytem, this should change to include multiple subsytems
-		$grav_url = "http://www.gravatar.com/avatar.php?gravatar_id=".md5( strtolower( $node->authorEmail ) ) .
+                $grav_url = "http://www.gravatar.com/avatar.php?gravatar_id=".md5( strtolower( $node->authorEmail ) ) .
 "&default=" . urlencode( "http://web.uvic.ca/~arasbm/img/person.png" ) . "&size=60";
 		echo	"{\n";
 		echo	"\"id\": \"$node->id\",\n";
@@ -176,17 +191,19 @@ class Extractor {
 		echo 	"\"data\": {\n";
 		echo 	"\t\"relativeDate\": \"$node->relativeDate\",\n";
 		echo 	"\t\"authorEmail\": \"$node->authorEmail\",\n";
-		echo	"\t\"avatar\": \"
+		echo	"\t\"avatar\": \"$grav_url\",\n";
 		echo	"\t\"committerName\": \"$node->committerName\",\n";
-		echo	"\t\"commitDate\": \"$node->commitDate\"\n";
+		echo	"\t\"commitDate\": \"$node->commitDate\",\n";
+		echo	"\t\"modificationSum\": \"$node->modificationSum\",\n";
+		echo 	"\t\"subsystem\": \"$node->subsystem\"\n";
 		echo	"},\n";
 		echo 	"\"adjacencies\": [\n";
 		for($j=0; $j<sizeof($node->parentList); $j++) {
 			echo 	"\t{\n";
 			echo 	"\t\"nodeTo\": \"".$node->parentList[$j]."\",\n";
 			echo 	"\t\"data\": {";
-			echo 	"\t\t\"\$lineWidth\": $node->modificationSum,";
-			echo	"\t\t\"\$lineColor\": \"$edgeColor\"\n";
+			echo 	"\n\t\t\"\$lineWidth\": $node->lineWidth,";
+			echo	"\n\t\t\"\$lineColor\": \"$node->lineColor\"\n";
 			echo	"\t\t}\n";
 			echo 	"\t}";
 			if ($j <(sizeof($node->parentList)-1)) echo ",\n";
@@ -226,7 +243,8 @@ class Extractor {
 	
 	$extractor= new Extractor;
 //	echo "Time ~ Position: ".$extractor->timePositionRatio."<br />";
-	$extractor->recCommitExtractor("e99cc29");
+//	$extractor->recCommitExtractor("e99cc29");
+	$extractor->startFromLatest();
 	echo "<pre>";
 	$extractor->printJSON();
 	echo "</pre>";
