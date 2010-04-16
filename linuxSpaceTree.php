@@ -65,7 +65,7 @@ Class Vector {
 Class GitParser {
 	private $PathToRepo="";
 	public $subsystemList=array(); //list of all subsytems that have been modified
-	public $colorList=array("#a73224","#a77e24","#95bb22","#51bb22","#22bb7c","#22abbb","#2267bb","#2322bb","#5522bb","#a122bb","#402626");
+	public $colorList=array("#e9de2a","#79e92a","#29a9e9","#293fe9", "#5f29e9","#a529e9","#2267bb","#ff2cbc","#ff2f2c","#c8950b","#c89fb7","#a0c89f","#0c0f4c","#402626");
 	private $lastColorIndex=0;
 
 	function __construct($path) {
@@ -195,7 +195,8 @@ class Extractor {
 		echo	"\t\"committerName\": \"$node->committerName\",\n";
 		echo	"\t\"commitDate\": \"$node->commitDate\",\n";
 		echo	"\t\"modificationSum\": \"$node->modificationSum\",\n";
-		echo 	"\t\"subsystem\": \"$node->subsystem\"\n";
+		echo 	"\t\"subsystem\": \"$node->subsystem\",\n";
+		echo 	"\t\"\$color\": \"$node->lineColor\"\n";
 		echo	"},\n";
 		echo 	"\"adjacencies\": [\n";
 		for($j=0; $j<sizeof($node->parentList); $j++) {
@@ -203,7 +204,7 @@ class Extractor {
 			echo 	"\t\"nodeTo\": \"".$node->parentList[$j]."\",\n";
 			echo 	"\t\"data\": {";
 			echo 	"\n\t\t\"\$lineWidth\": $node->lineWidth,";
-			echo	"\n\t\t\"\$lineColor\": \"$node->lineColor\"\n";
+			echo	"\n\t\t\"\$color\": \"$node->lineColor\"\n";
 			echo	"\t\t}\n";
 			echo 	"\t}";
 			if ($j <(sizeof($node->parentList)-1)) echo ",\n";

@@ -92,6 +92,21 @@ a {
     color:#23A4FF;
 }
 
+#tooltip {
+    position:absolute;
+    top:-1000px;
+    left:-2000px;
+    background-color:#1aa0b3;
+    color:#112;
+    filter:alpha(opacity=60); 
+    -moz-opacity: 0.6; 
+    opacity: 0.6; 
+}
+
+.avatar {
+    width:80px;
+    margin:3px;
+}
 
 #infovis {
     position:relative;
